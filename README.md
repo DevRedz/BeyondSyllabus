@@ -40,6 +40,59 @@ npm run build
 npm run start
 ```
 
+## Scrape Columbia Bulletins
+
+The scraper discovers department pages, reads the course catalog and section
+tables from each page, and maps them into the `departments`, `courses`,
+`course_catalog_versions`, `course_offerings`, `offering_sections`, and
+`professors` tables. Each course/term is stored as an offering; its section,
+call number, schedule, and location are stored in `offering_sections`. The
+Bulletin HTML includes content hidden behind its tabs, so the scraper does not
+need a browser to open each accordion. It supports Columbia College and Columbia
+Engineering.
+
+Run one department first to preview the extracted records:
+
+```bash
+npm run scrape:bulletin -- --department anthropology
+```
+
+Preview Columbia Engineering departments:
+
+```bash
+npm run scrape:engineering
+npm run scrape:engineering -- --department computer-science
+```
+
+Add `--write` to save the records, or omit `--department` to collect all
+departments in the selected school:
+
+```bash
+npm run scrape:bulletin -- --department anthropology --write
+npm run scrape:bulletin -- --write
+npm run scrape:engineering -- --write
+```
+
+The script reads `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`) and
+`SUPABASE_SECRET_KEY` from `.env`. Use the server-side secret key only in this
+local script; never expose it through a `NEXT_PUBLIC_` variable. A department's
+database code is derived from its Bulletin URL slug; Engineering codes use the
+`ENG_` prefix to avoid conflicting with College department codes. The supplied
+schema has one department per course and a globally unique course code, so a
+cross-listed course is associated with the first department where it is saved.
+Existing course ownership is preserved during later scrapes. Enrollment figures
+are not saved because the provided `course_offerings` table has no enrollment
+columns. Professor records are deduplicated by normalized name. Professor UUIDs
+from Bulletin instructor cells, including co-instructors, are passed to
+`get_or_create_offering()`. Explicit `Topic:` labels are passed as the topic
+title so the RPC can keep distinct topic offerings separate. The RPC handles
+offering identity, section matching, and preservation of linked records.
+
+Before using `--write`, apply the offering identity migration and create the
+`get_or_create_offering()` RPC, then grant it to `service_role` as described in
+the database setup. The scraper calls this RPC once per section and does not
+write directly to `course_offerings` or `offering_sections`.
+
 Files added
 
 - `package.json` — project metadata and scripts
@@ -48,6 +101,3 @@ Files added
 - `src/app/globals.css` — global styles
 - `.gitignore`
 
-# HumorProjectW1
-
-[Nara Lee] HumorProjectW1

@@ -3,8 +3,8 @@ import AuthControls from "../components/auth-controls";
 import { createClient } from "../lib/supabase/server";
 
 export const metadata = {
-  title: "Test Data | Humor Project",
-  description: "A view of the test data table.",
+  title: "Courses | Beyond Syllabus",
+  description: "A view of the courses table.",
 };
 
 export default async function RootLayout({
@@ -27,7 +27,7 @@ export default async function RootLayout({
       <body>
         <header className="site-header">
           <div className="site-header-inner">
-            <p className="brand-mark">Humor Project</p>
+            <p className="brand-mark">Beyond Syllabus</p>
             <AuthControls email={user?.email ?? null} />
           </div>
         </header>

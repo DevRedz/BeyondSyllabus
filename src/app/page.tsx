@@ -20,8 +20,8 @@ export default async function Home({
 
   try {
     const { data, error } = await getSupabase()
-      .from("test data")
-      .select("*");
+      .from("courses")
+      .select("course_code, title, resume_relevant",);
 
     if (error) {
       errorMessage = error.message;
@@ -45,7 +45,7 @@ export default async function Home({
       <div className="page-heading">
         <div>
           <p className="eyebrow">Supabase data view</p>
-          <h2>Test data</h2>
+          <h2>Courses data</h2>
         </div>
         <span className="row-count">
           {rows.length} {rows.length === 1 ? "row" : "rows"}
