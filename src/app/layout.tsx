@@ -3,8 +3,8 @@ import AuthControls from "../components/auth-controls";
 import { createClient } from "../lib/supabase/server";
 
 export const metadata = {
-  title: "Courses | Beyond Syllabus",
-  description: "A view of the courses table.",
+  title: "Syllabus Review | Beyond Syllabus",
+  description: "Curate evidence-backed course skills and resume bullets.",
 };
 
 export default async function RootLayout({

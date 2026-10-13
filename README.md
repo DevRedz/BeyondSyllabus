@@ -16,6 +16,9 @@ Create a `.env` file with your Supabase project URL, publishable key, and server
 NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
 SUPABASE_SECRET_KEY="your-secret-key"
+OPENAI_API_KEY="your-openai-api-key"
+# Optional: defaults to gpt-4o-mini
+OPENAI_MODEL="gpt-4o-mini"
 ```
 
 Use the publishable (or legacy anon) key for browser authentication. Never expose the secret/service-role key in a `NEXT_PUBLIC_` variable or browser code. The home page reads all rows from the `test data` table and renders its columns automatically.
@@ -26,6 +29,14 @@ Google sign-in redirects to `/auth/callback`. In Supabase Authentication → URL
 - `http://localhost:3000/auth/callback`
 
 In Google Cloud, the OAuth client's authorized redirect URI must be the callback URL shown in Supabase's Google provider settings (usually `https://<project-ref>.supabase.co/auth/v1/callback`).
+
+The home page lets signed-in users search for a course, upload a syllabus image,
+review generated skills and resume bullets in separate tabs, and save only the
+items they select. The image is sent to the server-side AI route for analysis;
+it is not stored. The response is limited to three skill categories, four skills
+per category, and five resume bullets. Selected skills are stored in
+`course_skills`; selected bullets are stored individually in `ai_generations`
+and can optionally be shared for voting.
 
 2. Start development server
 
