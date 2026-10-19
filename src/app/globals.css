@@ -45,6 +45,29 @@ main {
   justify-content: space-between;
 }
 
+.site-brand {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1.2rem;
+  font: 0.84rem ui-sans-serif, system-ui, sans-serif;
+}
+
+.site-nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 .auth-controls {
   display: flex;
   align-items: center;
@@ -104,6 +127,168 @@ main {
   margin-right: 0.45rem;
   border-radius: 50%;
   background: #4b9463;
+}
+
+.skills-page {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.skills-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.skills-heading h1 {
+  margin-top: 0.45rem;
+  font-size: clamp(2.6rem, 6vw, 5rem);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.skills-intro {
+  max-width: 55ch;
+  margin-top: 1rem;
+  color: var(--muted);
+  font: 0.95rem/1.6 ui-sans-serif, system-ui, sans-serif;
+}
+
+.skills-filters {
+  display: grid;
+  grid-template-columns: minmax(12rem, 2fr) minmax(12rem, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.skills-filters label {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--fg);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.skills-filters input,
+.skills-filters select {
+  width: 100%;
+  min-height: 2.8rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+}
+
+.skills-filters input:focus-visible,
+.skills-filters select:focus-visible,
+.vote-button:focus-visible,
+.site-nav a:focus-visible {
+  outline: 3px solid #3876a6;
+  outline-offset: 2px;
+}
+
+.skills-table-wrap {
+  margin-top: 1rem;
+}
+
+.skills-table {
+  min-width: 52rem;
+}
+
+.skills-table th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.skills-table td {
+  min-width: auto;
+}
+
+.skill-name-cell {
+  min-width: 10rem !important;
+  font-weight: 700;
+}
+
+.skill-course-title {
+  display: block;
+  max-width: 18rem;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.source-badge {
+  display: inline-block;
+  border-radius: 99px;
+  padding: 0.2rem 0.55rem;
+  background: #edf0e9;
+  color: #526354;
+  font-size: 0.68rem;
+  text-transform: capitalize;
+}
+
+.skill-evidence {
+  max-width: 32ch;
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.skill-votes {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.vote-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 3.25rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.45rem 0.55rem;
+  background: var(--surface);
+  color: var(--muted);
+  font: 0.78rem ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.vote-button:hover:not(:disabled) {
+  border-color: #98a596;
+  color: var(--fg);
+}
+
+.vote-button.selected {
+  border-color: #75947a;
+  background: #e5efe6;
+  color: #315c3b;
+}
+
+.vote-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.vote-hint {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.skills-error {
+  margin-bottom: 1rem;
 }
 
 .page-heading {
@@ -242,7 +427,8 @@ tbody tr:hover {
   font-weight: 700;
 }
 
-.form-field input:not([type="file"]) {
+.form-field input:not([type="file"]),
+.form-field select {
   width: 100%;
   min-height: 2.9rem;
   box-sizing: border-box;
@@ -266,6 +452,7 @@ tbody tr:hover {
 }
 
 .form-field input:focus-visible,
+.form-field select:focus-visible,
 .course-suggestions button:focus-visible,
 .review-tabs button:focus-visible,
 .primary-action:focus-visible,
@@ -638,6 +825,26 @@ tbody tr:hover {
     padding: 1rem;
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .site-brand {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+
+  .site-nav {
+    gap: 0.75rem;
+    font-size: 0.76rem;
+  }
+
+  .skills-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .skills-filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .page-heading {

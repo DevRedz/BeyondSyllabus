@@ -1,4 +1,5 @@
 import "./globals.css";
+import Link from "next/link";
 import AuthControls from "../components/auth-controls";
 import { createClient } from "../lib/supabase/server";
 
@@ -27,7 +28,13 @@ export default async function RootLayout({
       <body>
         <header className="site-header">
           <div className="site-header-inner">
-            <p className="brand-mark">Beyond Syllabus</p>
+            <div className="site-brand">
+              <p className="brand-mark">Beyond Syllabus</p>
+              <nav className="site-nav" aria-label="Main navigation">
+                <Link href="/">Syllabus review</Link>
+                <Link href="/skills">Course skills</Link>
+              </nav>
+            </div>
             <AuthControls email={user?.email ?? null} />
           </div>
         </header>

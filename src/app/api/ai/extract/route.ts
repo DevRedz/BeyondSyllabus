@@ -40,10 +40,14 @@ export async function POST(request: NextRequest) {
   }
 
   const courseId = String(formData.get("courseId") ?? "");
+  const offeringId = String(formData.get("offeringId") ?? "");
   const syllabusFile = formData.get("syllabus");
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(courseId)) {
     return NextResponse.json({ error: "Choose a valid course." }, { status: 400 });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(offeringId)) {
+    return NextResponse.json({ error: "Choose a valid course offering." }, { status: 400 });
   }
   if (!(syllabusFile instanceof File) || syllabusFile.size === 0) {
     return NextResponse.json({ error: "Choose a syllabus PDF." }, { status: 400 });
@@ -75,6 +79,24 @@ export async function POST(request: NextRequest) {
 
   if (courseError || !course) {
     return NextResponse.json({ error: "Course not found." }, { status: 404 });
+  }
+  const { data: offering, error: offeringError } = await admin
+    .from("course_offerings")
+    .select("id")
+    .eq("id", offeringId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+  if (offeringError) {
+    return NextResponse.json(
+      { error: `Could not verify course offering: ${offeringError.message}` },
+      { status: 500 },
+    );
+  }
+  if (!offering) {
+    return NextResponse.json(
+      { error: "The selected offering does not belong to this course." },
+      { status: 400 },
+    );
   }
 
   const pdfBase64 = pdfBytes.toString("base64");
@@ -241,6 +263,67 @@ export async function POST(request: NextRequest) {
       skillsets,
       resume_bullets: bullets,
     };
+
+    const { data: existingSyllabus, error: existingSyllabusError } = await admin
+      .from("syllabi")
+      .select("id")
+      .eq("offering_id", offeringId)
+      .limit(1)
+      .maybeSingle();
+    if (existingSyllabusError) {
+      return NextResponse.json(
+        { error: `Could not check for an existing syllabus: ${existingSyllabusError.message}` },
+        { status: 500 },
+      );
+    }
+
+    if (!existingSyllabus) {
+      const storagePath = `${user.id}/${offeringId}/${crypto.randomUUID()}.pdf`;
+      const { error: storageError } = await admin.storage
+        .from("syllabi")
+        .upload(storagePath, pdfBytes, {
+          contentType: "application/pdf",
+          upsert: false,
+        });
+      if (storageError) {
+        return NextResponse.json(
+          { error: `Could not store the syllabus PDF: ${storageError.message}` },
+          { status: 500 },
+        );
+      }
+
+      const { error: insertSyllabusError } = await admin.from("syllabi").insert({
+        offering_id: offeringId,
+        uploaded_by: user.id,
+        storage_path: storagePath,
+        file_type: "application/pdf",
+        processing_status: "completed",
+      });
+      if (insertSyllabusError) {
+        const { error: cleanupError } = await admin.storage
+          .from("syllabi")
+          .remove([storagePath]);
+        const cleanupMessage = cleanupError
+          ? ` The unreferenced storage file could not be removed: ${cleanupError.message}`
+          : "";
+        return NextResponse.json(
+          { error: `Could not save the syllabus record: ${insertSyllabusError.message}.${cleanupMessage}` },
+          { status: 500 },
+        );
+      }
+    }
+
+    const { error: userCourseError } = await admin.from("user_courses").upsert(
+      { user_id: user.id, offering_id: offeringId },
+      { onConflict: "user_id,offering_id", ignoreDuplicates: true },
+    );
+    if (userCourseError) {
+      return NextResponse.json(
+        { error: `Could not link this offering to your courses: ${userCourseError.message}` },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({ analysis: validatedAnalysis, model });
   } catch {
     return NextResponse.json({ error: "The AI service returned invalid structured data." }, { status: 502 });

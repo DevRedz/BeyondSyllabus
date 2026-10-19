@@ -33,19 +33,26 @@ Google sign-in redirects to `/auth/callback`. In Supabase Authentication → URL
 
 In Google Cloud, the OAuth client's authorized redirect URI must be the callback URL shown in Supabase's Google provider settings (usually `https://<project-ref>.supabase.co/auth/v1/callback`).
 
-The home page lets signed-in users search for a course, upload a syllabus PDF,
-review generated skills and resume bullets in separate tabs, and save only the
-items they select. The PDF is sent to the server-side AI route for analysis;
-it is not stored. The response is limited to three skill categories, four skills
-per category, and five resume bullets. Upload a PDF syllabus up to 4 MB.
+The home page lets signed-in users search for a course, select a specific
+semester/instructor offering, upload a syllabus PDF, review generated skills
+and resume bullets in separate tabs, and save only the items they select. The
+PDF is analyzed on the server and stored in the private `syllabi` storage bucket.
+For an offering that already has a syllabus record, no additional PDF or
+`syllabi` row is created. Every successful upload links the signed-in user to
+that offering in `user_courses`. The response is limited to three skill
+categories, four skills per category, and five resume bullets. Upload a PDF
+syllabus up to 4 MB.
 Selected skills are stored in
 `course_skills`. Each selected skill and resume bullet is also stored as its
 own `ai_generations` row, so `votes.generation_id` can refer to an individual
 item. Apply
 `supabase/migrations/20261018194500_make_ai_items_individually_votable.sql`
-in the Supabase SQL Editor before using the save feature. Sharing makes the
-items available for voting; vote submission and display need to be implemented
-separately.
+and `supabase/migrations/20261019120000_create_private_syllabi_bucket.sql` in
+the Supabase SQL Editor before using the save and upload features. The Course
+skills page displays `course_skills` and its community vote totals. Users must
+sign in and have a completed `user_courses` record for a course to vote. Apply
+`supabase/migrations/20261019125000_add_course_skill_votes.sql` in the Supabase
+SQL Editor to enable course skill voting.
 
 2. Start development server
 

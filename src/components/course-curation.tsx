@@ -1,11 +1,24 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 
 type Course = {
   id: string;
   course_code: string;
   title: string;
+};
+
+type CourseOffering = {
+  id: string;
+  semester: string;
+  year: number;
+  offering_identity_key: string;
 };
 
 type Skill = {
@@ -39,6 +52,10 @@ function skillKey(category: string, name: string) {
 export default function CourseCuration({ courses, isSignedIn }: Props) {
   const [courseSearch, setCourseSearch] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [offerings, setOfferings] = useState<CourseOffering[]>([]);
+  const [selectedOfferingId, setSelectedOfferingId] = useState("");
+  const [isLoadingOfferings, setIsLoadingOfferings] = useState(false);
+  const [offeringError, setOfferingError] = useState("");
   const [targetRole, setTargetRole] = useState("General software role");
   const [syllabusFile, setSyllabusFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
@@ -69,6 +86,49 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
     0,
   ) ?? 0;
   const selectedCount = selectedSkills.size + selectedBullets.size;
+
+  useEffect(() => {
+    if (!selectedCourse) {
+      setOfferings([]);
+      setSelectedOfferingId("");
+      setOfferingError("");
+      setIsLoadingOfferings(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setOfferings([]);
+    setSelectedOfferingId("");
+    setOfferingError("");
+    setIsLoadingOfferings(true);
+
+    async function loadOfferings() {
+      try {
+        const response = await fetch(
+          `/api/course-offerings?courseId=${encodeURIComponent(selectedCourse.id)}`,
+          { signal: controller.signal },
+        );
+        const result = (await response.json()) as {
+          offerings?: CourseOffering[];
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(result.error ?? "Unable to load course offerings.");
+        }
+        setOfferings(result.offerings ?? []);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setOfferingError(
+          error instanceof Error ? error.message : "Unable to load course offerings.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingOfferings(false);
+      }
+    }
+
+    void loadOfferings();
+    return () => controller.abort();
+  }, [selectedCourse]);
 
   function resetAnalysis() {
     setAnalysis(null);
@@ -102,11 +162,16 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
       setErrorMessage("Choose a course and syllabus PDF first.");
       return;
     }
+    if (!selectedOfferingId) {
+      setErrorMessage("Choose a course offering first.");
+      return;
+    }
 
     setIsGenerating(true);
     try {
       const formData = new FormData();
       formData.set("courseId", selectedCourse.id);
+      formData.set("offeringId", selectedOfferingId);
       formData.set("syllabus", syllabusFile);
       const response = await fetch("/api/ai/extract", {
         method: "POST",
@@ -267,6 +332,38 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
             )}
           </div>
 
+          {selectedCourse ? (
+            <div className="form-field">
+              <label htmlFor="course-offering">Course offering</label>
+              <select
+                id="course-offering"
+                value={selectedOfferingId}
+                onChange={(event) => setSelectedOfferingId(event.target.value)}
+                disabled={isLoadingOfferings || offerings.length === 0}
+              >
+                <option value="">
+                  {isLoadingOfferings
+                    ? "Loading offerings..."
+                    : offerings.length
+                      ? "Choose a semester and instructor set"
+                      : "No offerings available"}
+                </option>
+                {offerings.map((offering) => (
+                  <option key={offering.id} value={offering.id}>
+                    {offering.semester} {offering.year} · {offering.offering_identity_key}
+                  </option>
+                ))}
+              </select>
+              {offeringError ? (
+                <p className="field-hint error-text" role="alert">{offeringError}</p>
+              ) : offerings.length > 0 ? (
+                <p className="field-hint">
+                  Instructor identity distinguishes offerings in the same term.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="form-field">
             <label htmlFor="target-role">Target role</label>
             <input
@@ -297,7 +394,13 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
           <button
             className="primary-action"
             type="submit"
-            disabled={!isSignedIn || !selectedCourse || !syllabusFile || isGenerating}
+            disabled={
+              !isSignedIn ||
+              !selectedCourse ||
+              !selectedOfferingId ||
+              !syllabusFile ||
+              isGenerating
+            }
           >
             {isGenerating ? "Reading syllabus..." : "Generate a short draft"}
           </button>
