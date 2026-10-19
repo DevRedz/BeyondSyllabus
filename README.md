@@ -11,8 +11,8 @@ npm install
 Create a `.env` file with your Supabase project URL, publishable key, and server-side secret key:
 
 ```env
-NEXT_SUPABASE_URL="https://your-project.supabase.co"
-NEXT_SUPABASE_KEY="your-publishable-key"
+NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
 SUPABASE_SECRET_KEY="your-secret-key"
 OPENAI_API_KEY="your-openai-api-key"
 # Optional: defaults to gpt-4o-mini
