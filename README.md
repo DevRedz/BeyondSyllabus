@@ -1,6 +1,4 @@
-# HumorProjectW1
-
-Minimal Next.js skeleton for the Humor Project.
+# Beyond Syllabus
 
 Getting started
 
@@ -23,6 +21,11 @@ OPENAI_MODEL="gpt-4o-mini"
 
 Use the publishable (or legacy anon) key for browser authentication. Never expose the secret/service-role key in a `NEXT_PUBLIC_` variable or browser code. The home page reads all rows from the `test data` table and renders its columns automatically.
 
+The syllabus analysis route uses OpenAI's API. Create an API key in the
+[OpenAI dashboard](https://platform.openai.com/api-keys) and keep it in the
+server-side `OPENAI_API_KEY` environment variable. Do not prefix it with
+`NEXT_PUBLIC_` or expose it in browser code.
+
 Google sign-in redirects to `/auth/callback`. In Supabase Authentication → URL Configuration, allow both:
 
 - `https://your-deployed-domain/auth/callback`
@@ -30,13 +33,19 @@ Google sign-in redirects to `/auth/callback`. In Supabase Authentication → URL
 
 In Google Cloud, the OAuth client's authorized redirect URI must be the callback URL shown in Supabase's Google provider settings (usually `https://<project-ref>.supabase.co/auth/v1/callback`).
 
-The home page lets signed-in users search for a course, upload a syllabus image,
+The home page lets signed-in users search for a course, upload a syllabus PDF,
 review generated skills and resume bullets in separate tabs, and save only the
-items they select. The image is sent to the server-side AI route for analysis;
+items they select. The PDF is sent to the server-side AI route for analysis;
 it is not stored. The response is limited to three skill categories, four skills
-per category, and five resume bullets. Selected skills are stored in
-`course_skills`; selected bullets are stored individually in `ai_generations`
-and can optionally be shared for voting.
+per category, and five resume bullets. Upload a PDF syllabus up to 4 MB.
+Selected skills are stored in
+`course_skills`. Each selected skill and resume bullet is also stored as its
+own `ai_generations` row, so `votes.generation_id` can refer to an individual
+item. Apply
+`supabase/migrations/20261018194500_make_ai_items_individually_votable.sql`
+in the Supabase SQL Editor before using the save feature. Sharing makes the
+items available for voting; vote submission and display need to be implemented
+separately.
 
 2. Start development server
 
@@ -111,4 +120,3 @@ Files added
 - `src/app` — App Router entry (layout and page)
 - `src/app/globals.css` — global styles
 - `.gitignore`
-

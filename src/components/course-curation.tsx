@@ -40,13 +40,13 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
   const [courseSearch, setCourseSearch] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [targetRole, setTargetRole] = useState("General software role");
-  const [image, setImage] = useState<File | null>(null);
+  const [syllabusFile, setSyllabusFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [model, setModel] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("skills");
   const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
   const [selectedBullets, setSelectedBullets] = useState<Set<number>>(new Set());
-  const [shareBullets, setShareBullets] = useState(false);
+  const [shareSelectedItems, setShareSelectedItems] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -83,9 +83,9 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
     resetAnalysis();
   }
 
-  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextImage = event.target.files?.[0] ?? null;
-    setImage(nextImage);
+  function handleSyllabusChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0] ?? null;
+    setSyllabusFile(nextFile);
     resetAnalysis();
     setErrorMessage("");
   }
@@ -98,8 +98,8 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
       setErrorMessage("Sign in before analyzing a syllabus.");
       return;
     }
-    if (!selectedCourse || !image) {
-      setErrorMessage("Choose a course and syllabus image first.");
+    if (!selectedCourse || !syllabusFile) {
+      setErrorMessage("Choose a course and syllabus PDF first.");
       return;
     }
 
@@ -107,7 +107,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
     try {
       const formData = new FormData();
       formData.set("courseId", selectedCourse.id);
-      formData.set("image", image);
+      formData.set("syllabus", syllabusFile);
       const response = await fetch("/api/ai/extract", {
         method: "POST",
         body: formData,
@@ -118,7 +118,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
         error?: string;
       };
       if (!response.ok || !result.analysis) {
-        throw new Error(result.error ?? "Unable to analyze this image.");
+        throw new Error(result.error ?? "Unable to analyze this PDF.");
       }
       setAnalysis(result.analysis);
       setModel(result.model ?? "");
@@ -127,7 +127,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
       setActiveTab("skills");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unable to analyze this image.",
+        error instanceof Error ? error.message : "Unable to analyze this PDF.",
       );
     } finally {
       setIsGenerating(false);
@@ -182,7 +182,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
           model,
           skills,
           bullets,
-          shareBullets,
+          shareSelectedItems,
         }),
       });
       const result = (await response.json()) as {
@@ -279,14 +279,14 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
           </div>
 
           <div className="form-field">
-            <label htmlFor="syllabus-image">Syllabus image</label>
+            <label htmlFor="syllabus-pdf">Syllabus PDF</label>
             <input
-              id="syllabus-image"
+              id="syllabus-pdf"
               type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleImageChange}
+              accept="application/pdf,.pdf"
+              onChange={handleSyllabusChange}
             />
-            <p className="field-hint">PNG, JPEG, or WebP. Maximum 4 MB.</p>
+            <p className="field-hint">PDF only. Maximum 4 MB.</p>
           </div>
 
           {!isSignedIn ? (
@@ -297,7 +297,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
           <button
             className="primary-action"
             type="submit"
-            disabled={!isSignedIn || !selectedCourse || !image || isGenerating}
+            disabled={!isSignedIn || !selectedCourse || !syllabusFile || isGenerating}
           >
             {isGenerating ? "Reading syllabus..." : "Generate a short draft"}
           </button>
@@ -394,16 +394,17 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
                     <span className="review-item-copy">{bullet}</span>
                   </label>
                 ))}
-                <label className="share-option">
-                  <input
-                    type="checkbox"
-                    checked={shareBullets}
-                    onChange={(event) => setShareBullets(event.target.checked)}
-                  />
-                  <span>Share selected bullets publicly for community voting</span>
-                </label>
               </div>
             )}
+
+            <label className="share-option">
+              <input
+                type="checkbox"
+                checked={shareSelectedItems}
+                onChange={(event) => setShareSelectedItems(event.target.checked)}
+              />
+              <span>Share selected skills and bullets publicly for community voting</span>
+            </label>
 
             <div className="save-row">
               <span>Nothing is saved until you select it.</span>

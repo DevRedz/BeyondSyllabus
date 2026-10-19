@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
           typeof bullet === "string" && bullet.trim().length > 0 && bullet.length <= 1200,
       )
     : [];
-  const shareBullets = payload.shareBullets === true;
+  const shareSelectedItems = payload.shareSelectedItems === true;
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(courseId)) {
     return NextResponse.json({ error: "Choose a valid course." }, { status: 400 });
@@ -92,7 +92,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Course not found." }, { status: 404 });
   }
 
-  let insertedSkills = 0;
   if (selectedSkills.length) {
     const { data: existingSkills, error: existingSkillsError } = await admin
       .from("course_skills")
@@ -127,53 +126,104 @@ export async function POST(request: NextRequest) {
       if (error) {
         return NextResponse.json({ error: `Could not save selected skills: ${error.message}` }, { status: 500 });
       }
-      insertedSkills = skillsToInsert.length;
     }
   }
 
-  let insertedBullets = 0;
-  if (selectedBullets.length) {
-    const { data: existingGenerations, error: existingGenerationsError } = await admin
-      .from("ai_generations")
-      .select("generated_text")
-      .eq("user_id", user.id)
-      .eq("course_id", courseId)
-      .eq("target_role", targetRole);
-    if (existingGenerationsError) {
-      return NextResponse.json({ error: existingGenerationsError.message }, { status: 500 });
-    }
+  const selectedItems = [
+    ...(selectedSkills as SelectedSkill[]).map((skill) => ({
+      itemType: "skill" as const,
+      text: skill.name.trim(),
+      category: skill.category.trim(),
+      evidence: skill.evidence.trim() || null,
+    })),
+    ...selectedBullets.map((bullet) => ({
+      itemType: "resume_bullet" as const,
+      text: bullet.trim(),
+      category: null,
+      evidence: null,
+    })),
+  ];
 
-    const existingBulletTexts = new Set(
-      (existingGenerations ?? []).map((generation) =>
-        generation.generated_text.trim().toLowerCase(),
+  const { data: existingGenerations, error: existingGenerationsError } = await admin
+    .from("ai_generations")
+    .select("id, item_type, generated_text, category")
+    .eq("user_id", user.id)
+    .eq("course_id", courseId)
+    .eq("target_role", targetRole);
+  if (existingGenerationsError) {
+    return NextResponse.json({ error: existingGenerationsError.message }, { status: 500 });
+  }
+
+  const existingItemKeys = new Set(
+    (existingGenerations ?? [])
+      .filter((item) => typeof item.generated_text === "string")
+      .map((item) =>
+        `${item.item_type}|${item.category ?? ""}|${item.generated_text.trim().toLowerCase()}`,
       ),
-    );
-    const bulletsToInsert = selectedBullets
-      .map((bullet) => bullet.trim())
-      .filter((bullet) => !existingBulletTexts.has(bullet.toLowerCase()));
+  );
+  const selectedItemKeys = new Set(
+    selectedItems.map(
+      (item) =>
+        `${item.itemType}|${item.category ?? ""}|${item.text.toLowerCase()}`,
+    ),
+  );
+  const previouslySavedIds = (existingGenerations ?? [])
+    .filter(
+      (item) =>
+        typeof item.generated_text === "string" &&
+        selectedItemKeys.has(
+          `${item.item_type}|${item.category ?? ""}|${item.generated_text.trim().toLowerCase()}`,
+        ),
+    )
+    .map((item) => item.id);
 
-    if (bulletsToInsert.length) {
-      const { error } = await admin.from("ai_generations").insert(
-        bulletsToInsert.map((generatedText) => ({
-          user_id: user.id,
-          course_id: courseId,
-          target_role: targetRole,
-          prompt: `User-curated syllabus analysis for ${course.course_code} ${course.title}`,
-          generated_text: generatedText,
-          model_name: model,
-          is_public: shareBullets,
-        })),
-      );
-      if (error) {
-        return NextResponse.json({ error: `Could not save selected bullets: ${error.message}` }, { status: 500 });
-      }
-      insertedBullets = bulletsToInsert.length;
+  if (shareSelectedItems && previouslySavedIds.length) {
+    const { error } = await admin
+      .from("ai_generations")
+      .update({ is_public: true })
+      .in("id", previouslySavedIds);
+    if (error) {
+      return NextResponse.json({ error: `Could not share selected items: ${error.message}` }, { status: 500 });
     }
   }
+
+  const itemsToInsert = selectedItems.filter(
+    (item) =>
+      !existingItemKeys.has(
+        `${item.itemType}|${item.category ?? ""}|${item.text.toLowerCase()}`,
+      ),
+  );
+
+  if (itemsToInsert.length) {
+    const { error } = await admin.from("ai_generations").insert(
+      itemsToInsert.map((item) => ({
+        user_id: user.id,
+        course_id: courseId,
+        target_role: targetRole,
+        prompt: `User-curated syllabus analysis for ${course.course_code} ${course.title}`,
+        item_type: item.itemType,
+        generated_text: item.text,
+        category: item.category,
+        evidence: item.evidence,
+        model_name: model,
+        is_public: shareSelectedItems,
+      })),
+    );
+    if (error) {
+      return NextResponse.json({ error: `Could not save selected items: ${error.message}` }, { status: 500 });
+    }
+  }
+
+  const insertedBullets = itemsToInsert.filter(
+    (item) => item.itemType === "resume_bullet",
+  ).length;
+  const insertedGeneratedSkills = itemsToInsert.filter(
+    (item) => item.itemType === "skill",
+  ).length;
 
   return NextResponse.json({
-    insertedSkills,
+    insertedSkills: insertedGeneratedSkills,
     insertedBullets,
-    sharedBullets: shareBullets ? insertedBullets : 0,
+    sharedItems: shareSelectedItems ? itemsToInsert.length : 0,
   });
 }
