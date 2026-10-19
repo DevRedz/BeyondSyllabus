@@ -500,11 +500,11 @@ async function ensureProfessors(supabase, names) {
 }
 
 async function writeData(data) {
-  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_SUPABASE_URL;
   const secretKey = process.env.SUPABASE_SECRET_KEY;
   if (!supabaseUrl || !secretKey) {
     throw new Error(
-      "Set SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SECRET_KEY in .env.",
+      "Set SUPABASE_URL (or NEXT_SUPABASE_URL) and SUPABASE_SECRET_KEY in .env.",
     );
   }
 

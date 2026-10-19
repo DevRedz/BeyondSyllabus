@@ -11,8 +11,8 @@ npm install
 Create a `.env` file with your Supabase project URL, publishable key, and server-side secret key:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
+NEXT_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_SUPABASE_KEY="your-publishable-key"
 SUPABASE_SECRET_KEY="your-secret-key"
 OPENAI_API_KEY="your-openai-api-key"
 # Optional: defaults to gpt-4o-mini
@@ -93,7 +93,7 @@ npm run scrape:bulletin -- --write
 npm run scrape:engineering -- --write
 ```
 
-The script reads `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`) and
+The script reads `SUPABASE_URL` (or `NEXT_SUPABASE_URL`) and
 `SUPABASE_SECRET_KEY` from `.env`. Use the server-side secret key only in this
 local script; never expose it through a `NEXT_PUBLIC_` variable. A department's
 database code is derived from its Bulletin URL slug; Engineering codes use the
