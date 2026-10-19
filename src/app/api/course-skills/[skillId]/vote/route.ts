@@ -59,10 +59,10 @@ export async function POST(
 
   const { data: completedCourse, error: enrollmentError } = await admin
     .from("user_courses")
-    .select("offering_id, course_offerings!inner(course_id)")
+    .select("id")
     .eq("user_id", user.id)
+    .eq("course_id", skill.course_id)
     .eq("status", "completed")
-    .eq("course_offerings.course_id", skill.course_id)
     .limit(1)
     .maybeSingle();
   if (enrollmentError) {
