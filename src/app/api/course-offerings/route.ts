@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   const { data: offerings, error } = await getSupabase()
     .from("course_offerings")
-    .select("id, semester, year, offering_identity_key")
+    .select("id, semester, year, offering_professors(professors(name)), syllabi(id)")
     .eq("course_id", courseId)
     .order("year", { ascending: false })
     .order("semester");
@@ -21,5 +21,34 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ offerings: offerings ?? [] });
+  return NextResponse.json({
+    offerings: (offerings ?? []).map((offering) => ({
+      id: offering.id,
+      semester: offering.semester,
+      year: offering.year,
+      professors: Array.from(
+        new Set(
+          offering.offering_professors
+            .flatMap((link) => {
+              const relation: unknown = link.professors;
+              const relatedProfessors = Array.isArray(relation)
+                ? relation
+                : relation
+                  ? [relation]
+                  : [];
+              return relatedProfessors.flatMap((professor: unknown) =>
+                professor &&
+                typeof professor === "object" &&
+                "name" in professor &&
+                typeof professor.name === "string"
+                  ? [professor.name]
+                  : [],
+              );
+            })
+            .filter((name): name is string => Boolean(name)),
+        ),
+      ).sort(),
+      has_syllabus: offering.syllabi.length > 0,
+    })),
+  });
 }

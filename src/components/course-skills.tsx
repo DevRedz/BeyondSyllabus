@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 type CourseSkill = {
   id: string;
@@ -28,6 +28,7 @@ export default function CourseSkills({ isSignedIn }: Props) {
   const [loadingError, setLoadingError] = useState("");
   const [voteError, setVoteError] = useState("");
   const [pendingVote, setPendingVote] = useState<string | null>(null);
+  const [expandedSkillIds, setExpandedSkillIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -189,51 +190,88 @@ export default function CourseSkills({ isSignedIn }: Props) {
               <tr>
                 <th scope="col">Skill</th>
                 <th scope="col">Course</th>
-                <th scope="col">Source and evidence</th>
                 <th scope="col">Community votes</th>
               </tr>
             </thead>
             <tbody>
-              {visibleSkills.map((skill) => (
-                <tr key={skill.id}>
-                  <td className="skill-name-cell">{skill.name}</td>
-                  <td>
-                    <strong>{skill.courseCode}</strong>
-                    <span className="skill-course-title">{skill.courseTitle}</span>
-                  </td>
-                  <td>
-                    <span className="source-badge">{skill.sourceType.replaceAll("_", " ")}</span>
-                    {skill.evidence ? <p className="skill-evidence">{skill.evidence}</p> : null}
-                  </td>
-                  <td>
-                    <div className="skill-votes" aria-label={`Votes for ${skill.name}`}>
-                      <button
-                        className={`vote-button${skill.userVote === 1 ? " selected" : ""}`}
-                        type="button"
-                        aria-label={`Upvote ${skill.name}`}
-                        aria-pressed={skill.userVote === 1}
-                        disabled={pendingVote === skill.id}
-                        onClick={() => void castVote(skill, 1)}
-                      >
-                        <span aria-hidden="true">▲</span> {skill.upvotes}
-                      </button>
-                      <button
-                        className={`vote-button${skill.userVote === -1 ? " selected" : ""}`}
-                        type="button"
-                        aria-label={`Downvote ${skill.name}`}
-                        aria-pressed={skill.userVote === -1}
-                        disabled={pendingVote === skill.id}
-                        onClick={() => void castVote(skill, -1)}
-                      >
-                        <span aria-hidden="true">▼</span> {skill.downvotes}
-                      </button>
-                    </div>
-                    {!isSignedIn ? (
-                      <span className="vote-hint">Sign in to vote</span>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
+              {visibleSkills.map((skill) => {
+                const isExpanded = expandedSkillIds.has(skill.id);
+                const detailsId = `skill-details-${skill.id}`;
+                return (
+                  <Fragment key={skill.id}>
+                    <tr>
+                      <td className="skill-name-cell">
+                        {skill.name}
+                        <button
+                          className="skill-details-toggle"
+                          type="button"
+                          aria-expanded={isExpanded}
+                          aria-controls={detailsId}
+                          onClick={() =>
+                            setExpandedSkillIds((current) => {
+                              const next = new Set(current);
+                              if (next.has(skill.id)) next.delete(skill.id);
+                              else next.add(skill.id);
+                              return next;
+                            })
+                          }
+                        >
+                          {isExpanded ? "Hide details" : "Details"}
+                        </button>
+                      </td>
+                      <td>
+                        <strong>{skill.courseCode}</strong>
+                        <span className="skill-course-title">{skill.courseTitle}</span>
+                      </td>
+                      <td>
+                        <div className="skill-votes" aria-label={`Votes for ${skill.name}`}>
+                          <button
+                            className={`vote-button${skill.userVote === 1 ? " selected" : ""}`}
+                            type="button"
+                            aria-label={`Upvote ${skill.name}`}
+                            aria-pressed={skill.userVote === 1}
+                            disabled={pendingVote === skill.id}
+                            onClick={() => void castVote(skill, 1)}
+                          >
+                            <span aria-hidden="true">▲</span> {skill.upvotes}
+                          </button>
+                          <button
+                            className={`vote-button${skill.userVote === -1 ? " selected" : ""}`}
+                            type="button"
+                            aria-label={`Downvote ${skill.name}`}
+                            aria-pressed={skill.userVote === -1}
+                            disabled={pendingVote === skill.id}
+                            onClick={() => void castVote(skill, -1)}
+                          >
+                            <span aria-hidden="true">▼</span> {skill.downvotes}
+                          </button>
+                        </div>
+                        {!isSignedIn ? (
+                          <span className="vote-hint">Sign in to vote</span>
+                        ) : null}
+                      </td>
+                    </tr>
+                    <tr
+                      id={detailsId}
+                      className="skill-details-row"
+                      hidden={!isExpanded}
+                    >
+                      <td colSpan={3}>
+                        <div className="skill-details-content">
+                          <span className="source-badge">
+                            {skill.sourceType.replaceAll("_", " ")}
+                          </span>
+                          {skill.evidence ? (
+                            <p className="skill-evidence">{skill.evidence}</p>
+                          ) : (
+                            <p className="skill-evidence">No evidence provided.</p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

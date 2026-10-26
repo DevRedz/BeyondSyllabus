@@ -33,6 +33,7 @@ export default async function RootLayout({
               <nav className="site-nav" aria-label="Main navigation">
                 <Link href="/">Syllabus review</Link>
                 <Link href="/skills">Course skills</Link>
+                {user ? <Link href="/dashboard">Dashboard</Link> : null}
               </nav>
             </div>
             <AuthControls email={user?.email ?? null} />

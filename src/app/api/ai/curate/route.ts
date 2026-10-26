@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "../../../../lib/supabase";
 import { createClient } from "../../../../lib/supabase/server";
+import { getTargetRoleError, normalizeTargetRole } from "../../../../lib/target-role";
 
 type SelectedSkill = {
   category: string;
@@ -53,7 +54,10 @@ export async function POST(request: NextRequest) {
   }
   const payload = body as Record<string, unknown>;
   const courseId = typeof payload.courseId === "string" ? payload.courseId : "";
-  const targetRole = typeof payload.targetRole === "string" ? payload.targetRole.trim() : "";
+  const targetRole =
+    typeof payload.targetRole === "string"
+      ? normalizeTargetRole(payload.targetRole)
+      : "";
   const model =
     typeof payload.model === "string" && payload.model.length <= 80
       ? payload.model
@@ -70,9 +74,11 @@ export async function POST(request: NextRequest) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(courseId)) {
     return NextResponse.json({ error: "Choose a valid course." }, { status: 400 });
   }
-  if (!targetRole || targetRole.length > 120) {
-    return NextResponse.json({ error: "Add a target role of 120 characters or fewer." }, { status: 400 });
+  const targetRoleError = targetRole ? getTargetRoleError(targetRole) : "";
+  if (targetRoleError) {
+    return NextResponse.json({ error: targetRoleError }, { status: 400 });
   }
+  const storedTargetRole = targetRole || "General software role";
   if (
     selectedSkills.length > 12 ||
     !selectedSkills.every(isSelectedSkill) ||
@@ -149,7 +155,7 @@ export async function POST(request: NextRequest) {
     .select("id, item_type, generated_text, category")
     .eq("user_id", user.id)
     .eq("course_id", courseId)
-    .eq("target_role", targetRole);
+    .eq("target_role", storedTargetRole);
   if (existingGenerationsError) {
     return NextResponse.json({ error: existingGenerationsError.message }, { status: 500 });
   }
@@ -199,7 +205,7 @@ export async function POST(request: NextRequest) {
       itemsToInsert.map((item) => ({
         user_id: user.id,
         course_id: courseId,
-        target_role: targetRole,
+        target_role: storedTargetRole,
         prompt: `User-curated syllabus analysis for ${course.course_code} ${course.title}`,
         item_type: item.itemType,
         generated_text: item.text,
