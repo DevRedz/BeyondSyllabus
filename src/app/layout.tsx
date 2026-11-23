@@ -4,8 +4,8 @@ import AuthControls from "../components/auth-controls";
 import { createClient } from "../lib/supabase/server";
 
 export const metadata = {
-  title: "Syllabus Review | Beyond Syllabus",
-  description: "Curate evidence-backed course skills and resume bullets.",
+  title: "Resume | Beyond Syllabus",
+  description: "Build a resume from your saved course skills and projects.",
 };
 
 export default async function RootLayout({
@@ -31,8 +31,9 @@ export default async function RootLayout({
             <div className="site-brand">
               <p className="brand-mark">Beyond Syllabus</p>
               <nav className="site-nav" aria-label="Main navigation">
-                <Link href="/">Syllabus review</Link>
+                <Link href="/">Resume</Link>
                 <Link href="/skills">Course skills</Link>
+                <Link href="/review">Syllabus review</Link>
                 {user ? <Link href="/profile">Profile</Link> : null}
               </nav>
             </div>

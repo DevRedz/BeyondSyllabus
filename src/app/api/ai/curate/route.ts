@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
   }
   const payload = body as Record<string, unknown>;
   const courseId = typeof payload.courseId === "string" ? payload.courseId : "";
+  const offeringId = typeof payload.offeringId === "string" ? payload.offeringId : null;
   const targetRole =
     typeof payload.targetRole === "string"
       ? normalizeTargetRole(payload.targetRole)
@@ -73,6 +74,9 @@ export async function POST(request: NextRequest) {
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(courseId)) {
     return NextResponse.json({ error: "Choose a valid course." }, { status: 400 });
+  }
+  if (offeringId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(offeringId)) {
+    return NextResponse.json({ error: "Choose a valid course offering." }, { status: 400 });
   }
   const targetRoleError = targetRole ? getTargetRoleError(targetRole) : "";
   if (targetRoleError) {
@@ -98,7 +102,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Course not found." }, { status: 404 });
   }
 
-  if (selectedSkills.length) {
+  let syllabusId: string | null = null;
+  if (offeringId) {
+    const { data: offering, error: offeringError } = await admin
+      .from("course_offerings")
+      .select("id")
+      .eq("id", offeringId)
+      .eq("course_id", courseId)
+      .maybeSingle();
+    if (offeringError || !offering) {
+      return NextResponse.json(
+        { error: offeringError?.message ?? "The offering does not belong to this course." },
+        { status: 400 },
+      );
+    }
+    const { data: syllabus, error: syllabusError } = await admin
+      .from("syllabi")
+      .select("id")
+      .eq("offering_id", offeringId)
+      .limit(1)
+      .maybeSingle();
+    if (syllabusError) {
+      return NextResponse.json({ error: syllabusError.message }, { status: 500 });
+    }
+    syllabusId = syllabus?.id ?? null;
+  }
+
+  if (shareSelectedItems && selectedSkills.length) {
     const { data: existingSkills, error: existingSkillsError } = await admin
       .from("course_skills")
       .select("skill_name, source_reference")
@@ -120,6 +150,7 @@ export async function POST(request: NextRequest) {
         source_type: "student_verified",
         source_reference: `ai-syllabus:${skill.category.trim()}`,
         evidence: skill.evidence.trim() || null,
+        syllabus_id: syllabusId,
       }))
       .filter((skill) =>
         !existingKeys.has(
@@ -205,6 +236,7 @@ export async function POST(request: NextRequest) {
       itemsToInsert.map((item) => ({
         user_id: user.id,
         course_id: courseId,
+        offering_id: offeringId,
         target_role: storedTargetRole,
         prompt: `User-curated syllabus analysis for ${course.course_code} ${course.title}`,
         item_type: item.itemType,

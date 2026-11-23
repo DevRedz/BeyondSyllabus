@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
 
   const courseId = String(formData.get("courseId") ?? "");
   const offeringId = String(formData.get("offeringId") ?? "");
+  const hasCompletedCourse = formData.get("hasCompletedCourse") === "true";
   const offeringYearValue = formData.get("offeringYear");
   const targetRoleValue = formData.get("targetRole");
   const syllabusValue = formData.get("syllabus");
@@ -492,15 +493,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { error: userCourseError } = await admin.from("user_courses").upsert(
-      { user_id: user.id, course_id: courseId },
-      { onConflict: "user_id,course_id", ignoreDuplicates: true },
-    );
-    if (userCourseError) {
+    const { data: existingUserCourse, error: existingUserCourseError } = await admin
+      .from("user_courses")
+      .select("id, status")
+      .eq("user_id", user.id)
+      .eq("course_id", courseId)
+      .maybeSingle();
+    if (existingUserCourseError) {
       return NextResponse.json(
-        { error: `Could not link this course to your dashboard: ${userCourseError.message}` },
+        { error: `Could not check your course history: ${existingUserCourseError.message}` },
         { status: 500 },
       );
+    }
+    if (hasCompletedCourse || !existingUserCourse) {
+      const { error: userCourseError } = await admin.from("user_courses").upsert(
+        {
+          user_id: user.id,
+          course_id: courseId,
+          status: hasCompletedCourse ? "completed" : "in_progress",
+        },
+        { onConflict: "user_id,course_id" },
+      );
+      if (userCourseError) {
+        return NextResponse.json(
+          { error: `Could not link this course to your dashboard: ${userCourseError.message}` },
+          { status: 500 },
+        );
+      }
     }
 
     return NextResponse.json({ analysis: validatedAnalysis, model });

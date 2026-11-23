@@ -53,6 +53,15 @@ type Analysis = {
 type Props = {
   courses: Course[];
   isSignedIn: boolean;
+  initialCourse?: Course | null;
+  initialOffering?: {
+    id: string | null;
+    year: number;
+    semester: string;
+    section: string;
+    professors: string[];
+  } | null;
+  initialCourseCompleted?: boolean;
 };
 
 type Tab = "skills" | "bullets";
@@ -72,13 +81,26 @@ function parseProfessorNames(value: string) {
     .filter(Boolean);
 }
 
-export default function CourseCuration({ courses, isSignedIn }: Props) {
+export default function CourseCuration({
+  courses,
+  isSignedIn,
+  initialCourse = null,
+  initialOffering = null,
+  initialCourseCompleted = false,
+}: Props) {
   const [courseSearch, setCourseSearch] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(initialCourse);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
-  const [selectedOfferingYear, setSelectedOfferingYear] = useState("");
-  const [selectedOfferingSemester, setSelectedOfferingSemester] = useState("");
-  const [selectedProfessors, setSelectedProfessors] = useState<string[]>([]);
+  const [selectedOfferingYear, setSelectedOfferingYear] = useState(
+    initialOffering ? String(initialOffering.year) : "",
+  );
+  const [selectedOfferingSemester, setSelectedOfferingSemester] = useState(initialOffering?.semester ?? "");
+  const [selectedProfessors, setSelectedProfessors] = useState<string[]>(
+    initialOffering?.professors ?? [],
+  );
+  const [selectedSection, setSelectedSection] = useState(initialOffering?.section ?? "");
+  const [hasSavedHistoryContext, setHasSavedHistoryContext] = useState(Boolean(initialOffering));
+  const [selectedOfferingId, setSelectedOfferingId] = useState(initialOffering?.id ?? "");
   const [professorQuery, setProfessorQuery] = useState("");
   const [professorSuggestions, setProfessorSuggestions] = useState<string[]>([]);
   const [isSearchingProfessors, setIsSearchingProfessors] = useState(false);
@@ -94,6 +116,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
   const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
   const [selectedBullets, setSelectedBullets] = useState<Set<number>>(new Set());
   const [shareSelectedItems, setShareSelectedItems] = useState(false);
+  const [hasCompletedCourse, setHasCompletedCourse] = useState(initialCourseCompleted);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -129,18 +152,31 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
   const hasAnyOfferingSelection = Boolean(
     selectedOfferingYear || selectedOfferingSemester || selectedProfessors.length || professorQuery.trim(),
   );
-  const hasCompleteOfferingSelection = Boolean(
-    selectedOfferingYear && selectedOfferingSemester && (selectedProfessors.length || professorQuery.trim()),
-  );
-  const hasPartialOfferingSelection =
-    hasAnyOfferingSelection && !hasCompleteOfferingSelection;
   const selectedOfferingMatches = offerings.filter(
     (offering) =>
       String(offering.year) === selectedOfferingYear &&
       offering.semester === selectedOfferingSemester &&
       professorGroupKey(offering.professors) === selectedProfessorGroup,
   );
+  const preferredOffering = offerings.find((offering) => offering.id === selectedOfferingId);
+  const preferredOfferingMatches = Boolean(
+    preferredOffering &&
+      String(preferredOffering.year) === selectedOfferingYear &&
+      preferredOffering.semester === selectedOfferingSemester &&
+      professorGroupKey(preferredOffering.professors) === selectedProfessorGroup,
+  );
+  const hasCompleteOfferingSelection = Boolean(
+    selectedOfferingYear &&
+      selectedOfferingSemester &&
+      (selectedProfessors.length ||
+        professorQuery.trim() ||
+        preferredOfferingMatches ||
+        hasSavedHistoryContext),
+  );
+  const hasPartialOfferingSelection =
+    hasAnyOfferingSelection && !hasCompleteOfferingSelection;
   const selectedOffering =
+    (preferredOfferingMatches ? preferredOffering : undefined) ??
     selectedOfferingMatches.find((offering) => offering.has_syllabus) ??
     selectedOfferingMatches[0];
   const matchingSyllabusExists = selectedOfferingMatches.some(
@@ -150,10 +186,6 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
   useEffect(() => {
     if (!selectedCourse) {
       setOfferings([]);
-      setSelectedOfferingYear("");
-      setSelectedOfferingSemester("");
-      setSelectedProfessors([]);
-      setProfessorQuery("");
       setOfferingError("");
       setIsLoadingOfferings(false);
       return;
@@ -161,10 +193,6 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
 
     const controller = new AbortController();
     setOfferings([]);
-    setSelectedOfferingYear("");
-    setSelectedOfferingSemester("");
-    setSelectedProfessors([]);
-    setProfessorQuery("");
     setOfferingError("");
     setIsLoadingOfferings(true);
 
@@ -247,16 +275,38 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
 
   function chooseCourse(course: Course) {
     setSelectedCourse(course);
+    setHasCompletedCourse(false);
     setSelectedOfferingYear("");
     setSelectedOfferingSemester("");
     setSelectedProfessors([]);
+    setSelectedSection("");
+    setHasSavedHistoryContext(false);
+    setSelectedOfferingId("");
     setProfessorQuery("");
     setCourseSearch("");
     resetAnalysis();
   }
 
+  function clearSelectedCourse() {
+    setSelectedCourse(null);
+    setHasCompletedCourse(false);
+    setSelectedOfferingYear("");
+    setSelectedOfferingSemester("");
+    setSelectedProfessors([]);
+    setSelectedSection("");
+    setHasSavedHistoryContext(false);
+    setSelectedOfferingId("");
+    setProfessorQuery("");
+    resetAnalysis();
+  }
+
   function addProfessorNames(names: string[]) {
     const cleanedNames = names.map((name) => name.trim()).filter(Boolean);
+    if (cleanedNames.length) {
+      setSelectedSection("");
+      setHasSavedHistoryContext(false);
+      setSelectedOfferingId("");
+    }
     setSelectedProfessors((current) => {
       const existingNames = new Set(current.map((name) => name.toLocaleLowerCase()));
       const newNames = cleanedNames.filter((name) => {
@@ -276,6 +326,9 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
   }
 
   function handleProfessorQueryChange(value: string) {
+    setSelectedSection("");
+    setHasSavedHistoryContext(false);
+    setSelectedOfferingId("");
     const segments = value.split(/[,;\n]/);
     if (segments.length > 1) {
       addProfessorNames(segments.slice(0, -1));
@@ -294,6 +347,9 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
   }
 
   function removeProfessor(nameToRemove: string) {
+    setSelectedSection("");
+    setHasSavedHistoryContext(false);
+    setSelectedOfferingId("");
     setSelectedProfessors((current) =>
       current.filter((name) => name.toLocaleLowerCase() !== nameToRemove.toLocaleLowerCase()),
     );
@@ -334,6 +390,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
     try {
       const formData = new FormData();
       formData.set("courseId", selectedCourse.id);
+      formData.set("hasCompletedCourse", String(hasCompletedCourse));
       if (selectedOfferingYear) formData.set("offeringYear", selectedOfferingYear);
       if (selectedOffering) formData.set("offeringId", selectedOffering.id);
       if (syllabusFile) formData.set("syllabus", syllabusFile);
@@ -418,6 +475,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: selectedCourse.id,
+          offeringId: selectedOffering?.id ?? null,
           targetRole: normalizeTargetRole(targetRole),
           model,
           skills,
@@ -467,10 +525,7 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
                 <button
                   className="text-button"
                   type="button"
-                  onClick={() => {
-                    setSelectedCourse(null);
-                    resetAnalysis();
-                  }}
+                  onClick={clearSelectedCourse}
                 >
                   Change
                 </button>
@@ -508,8 +563,25 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
           </div>
 
           {selectedCourse ? (
+            <label className="course-completion-check">
+              <input
+                type="checkbox"
+                checked={hasCompletedCourse}
+                onChange={(event) => setHasCompletedCourse(event.target.checked)}
+              />
+              <span>I have completed this course and can vote on its community items.</span>
+            </label>
+          ) : null}
+
+          {selectedCourse ? (
             <fieldset className="offering-selection">
               <legend>Course offering (optional)</legend>
+              {hasSavedHistoryContext ? (
+                <p className="field-hint selected-section-context">
+                  Using saved Profile history{selectedSection ? ` · Section ${selectedSection}` : ""}.
+                  {selectedProfessors.length ? "" : " No matched professor was saved; you can continue without one."}
+                </p>
+              ) : null}
               <div className="offering-fields">
                 <div className="form-field">
                   <label htmlFor="offering-year">Year</label>
@@ -525,6 +597,9 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
                       setSelectedOfferingSemester("");
                       setSelectedProfessors([]);
                       setProfessorQuery("");
+                      setSelectedSection("");
+                      setHasSavedHistoryContext(false);
+                      setSelectedOfferingId("");
                     }}
                     placeholder="Enter any year"
                     aria-label="Offering year"
@@ -544,6 +619,9 @@ export default function CourseCuration({ courses, isSignedIn }: Props) {
                       setSelectedOfferingSemester(event.target.value);
                       setSelectedProfessors([]);
                       setProfessorQuery("");
+                      setSelectedSection("");
+                      setHasSavedHistoryContext(false);
+                      setSelectedOfferingId("");
                     }}
                     disabled={!selectedOfferingYear.trim()}
                   >
