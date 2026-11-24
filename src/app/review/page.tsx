@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import CourseCuration from "../../components/course-curation";
 import { getSupabase } from "../../lib/supabase";
+import { isRecoverableAuthSessionError } from "../../lib/supabase/auth-errors";
 import { createClient } from "../../lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +59,12 @@ export default async function SyllabusReview({
   const authClient = await createClient();
   const {
     data: { user },
+    error: authError,
   } = await authClient.auth.getUser();
+  if (authError && !isRecoverableAuthSessionError(authError)) {
+    throw new Error(`Unable to verify the current user: ${authError.message}`);
+  }
+  const currentUser = authError ? null : user;
 
   try {
     const { data, error } = await getSupabase()
@@ -87,12 +93,12 @@ export default async function SyllabusReview({
     ? courses.find((course) => course.id === requestedCourseId)
     : undefined;
 
-  if (user && requestedCourse) {
+  if (currentUser && requestedCourse) {
     const admin = getSupabase();
     const { data: enrollment } = await admin
       .from("user_courses")
       .select("status")
-      .eq("user_id", user.id)
+      .eq("user_id", currentUser.id)
       .eq("course_id", requestedCourse.id)
       .maybeSingle();
 
@@ -103,7 +109,7 @@ export default async function SyllabusReview({
       const historyBaseQuery = admin
         .from("user_course_history")
         .select("id, term_year, term_semester, section, offering_id, course_offerings(offering_professors(professors(name)))")
-        .eq("user_id", user.id)
+        .eq("user_id", currentUser.id)
         .eq("course_id", requestedCourse.id);
 
       const { data: history } = requestedHistoryId && isUuid(requestedHistoryId)
@@ -135,7 +141,7 @@ export default async function SyllabusReview({
       ) : (
         <CourseCuration
           courses={courses}
-          isSignedIn={Boolean(user)}
+          isSignedIn={Boolean(currentUser)}
           initialCourse={initialCourse}
           initialOffering={initialOffering}
           initialCourseCompleted={initialCourseCompleted}

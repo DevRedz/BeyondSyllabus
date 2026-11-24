@@ -1,6 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import AuthControls from "../components/auth-controls";
+import { isRecoverableAuthSessionError } from "../lib/supabase/auth-errors";
 import { createClient } from "../lib/supabase/server";
 
 export const metadata = {
@@ -19,9 +20,10 @@ export default async function RootLayout({
     error,
   } = await supabase.auth.getUser();
 
-  if (error && error.name !== "AuthSessionMissingError") {
+  if (error && !isRecoverableAuthSessionError(error)) {
     throw new Error(`Unable to verify the current user: ${error.message}`);
   }
+  const currentUser = error ? null : user;
 
   return (
     <html lang="en">
@@ -34,10 +36,10 @@ export default async function RootLayout({
                 <Link href="/">Resume</Link>
                 <Link href="/skills">Course skills</Link>
                 <Link href="/review">Syllabus review</Link>
-                {user ? <Link href="/profile">Profile</Link> : null}
+                {currentUser ? <Link href="/profile">Profile</Link> : null}
               </nav>
             </div>
-            <AuthControls email={user?.email ?? null} />
+            <AuthControls email={currentUser?.email ?? null} />
           </div>
         </header>
         <main>{children}</main>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "../../../lib/supabase";
+import { isRecoverableAuthSessionError } from "../../../lib/supabase/auth-errors";
 import { createClient } from "../../../lib/supabase/server";
 
 type SkillRow = {
@@ -69,12 +70,13 @@ export async function GET() {
     error: authError,
   } = await authClient.auth.getUser();
 
-  if (authError && authError.name !== "AuthSessionMissingError") {
+  if (authError && !isRecoverableAuthSessionError(authError)) {
     return NextResponse.json(
       { error: `Could not verify your session: ${authError.message}` },
       { status: 500 },
     );
   }
+  const currentUser = authError ? null : user;
 
   const admin = getSupabase();
   try {
@@ -110,11 +112,11 @@ export async function GET() {
           .order("generation_id")
           .range(from, to),
       ),
-      user
+      currentUser
         ? admin
             .from("user_courses")
             .select("course_id")
-            .eq("user_id", user.id)
+            .eq("user_id", currentUser.id)
             .eq("status", "completed")
             .then(({ data, error }) => {
               if (error) throw new Error(error.message);
@@ -156,7 +158,7 @@ export async function GET() {
       const summary = skillSummaries.get(vote.course_skill_id) ?? { upvotes: 0, downvotes: 0, userVote: null };
       if (vote.vote === 1) summary.upvotes += 1;
       else summary.downvotes += 1;
-      if (vote.user_id === user?.id) summary.userVote = vote.vote;
+      if (vote.user_id === currentUser?.id) summary.userVote = vote.vote;
       skillSummaries.set(vote.course_skill_id, summary);
     }
 
@@ -167,7 +169,7 @@ export async function GET() {
       const summary = bulletSummaries.get(vote.generation_id) ?? { upvotes: 0, downvotes: 0, userVote: null };
       if (vote.vote_value === 1) summary.upvotes += 1;
       else summary.downvotes += 1;
-      if (vote.user_id === user?.id) summary.userVote = vote.vote_value;
+      if (vote.user_id === currentUser?.id) summary.userVote = vote.vote_value;
       bulletSummaries.set(vote.generation_id, summary);
     }
 

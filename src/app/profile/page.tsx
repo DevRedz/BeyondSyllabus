@@ -1,5 +1,6 @@
 import { getSupabase } from "../../lib/supabase";
 import { createClient } from "../../lib/supabase/server";
+import { isRecoverableAuthSessionError } from "../../lib/supabase/auth-errors";
 import type { Metadata } from "next";
 import Link from "next/link";
 import CourseHistoryImport from "../../components/course-history-import";
@@ -85,11 +86,12 @@ export default async function ProfilePage() {
     error: authError,
   } = await authClient.auth.getUser();
 
-  if (authError && authError.name !== "AuthSessionMissingError") {
+  if (authError && !isRecoverableAuthSessionError(authError)) {
     throw new Error(`Unable to verify the current user: ${authError.message}`);
   }
+  const currentUser = authError ? null : user;
 
-  if (!user) {
+  if (!currentUser) {
     return (
       <section className="dashboard-page">
         <div className="dashboard-heading">
@@ -106,17 +108,17 @@ export default async function ProfilePage() {
     admin
       .from("user_courses")
       .select("course_id, status, created_at, courses!inner(course_code, title)")
-      .eq("user_id", user.id)
+      .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false }),
     admin
       .from("ai_generations")
       .select("id, course_id, item_type, generated_text, category, target_role, is_public, created_at, courses!inner(course_code, title)")
-      .eq("user_id", user.id)
+      .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false }),
     admin
       .from("user_course_history")
       .select("id, course_id, term_year, term_semester, section, offering_id, course_offerings(offering_professors(professors(name)))")
-      .eq("user_id", user.id)
+      .eq("user_id", currentUser.id)
       .order("term_year", { ascending: false })
       .order("term_semester"),
   ]);
@@ -138,11 +140,11 @@ export default async function ProfilePage() {
     rows.push(history);
     historyByCourse.set(history.course_id, rows);
   }
-  const metadata = user.user_metadata as Record<string, unknown>;
+  const metadata = currentUser.user_metadata as Record<string, unknown>;
   const displayName =
     [metadata.full_name, metadata.name, metadata.display_name].find(
       (value): value is string => typeof value === "string" && value.trim().length > 0,
-    ) ?? user.email?.split("@")[0] ?? "User";
+    ) ?? currentUser.email?.split("@")[0] ?? "User";
 
   return (
     <section className="dashboard-page">
@@ -172,11 +174,11 @@ export default async function ProfilePage() {
         <dl>
           <div>
             <dt>Email</dt>
-            <dd>{user.email ?? "Not provided"}</dd>
+            <dd>{currentUser.email ?? "Not provided"}</dd>
           </div>
           <div>
             <dt>Member since</dt>
-            <dd>{formatDate(user.created_at)}</dd>
+            <dd>{formatDate(currentUser.created_at)}</dd>
           </div>
         </dl>
       </section>

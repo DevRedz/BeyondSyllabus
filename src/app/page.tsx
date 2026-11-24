@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ResumeBuilder, { type ResumeItem } from "../components/resume-builder";
+import { isRecoverableAuthSessionError } from "../lib/supabase/auth-errors";
 import { getSupabase } from "../lib/supabase";
 import { createClient } from "../lib/supabase/server";
 
@@ -57,17 +58,18 @@ export default async function ResumePage({
     error: authError,
   } = await authClient.auth.getUser();
 
-  if (authError && authError.name !== "AuthSessionMissingError") {
+  if (authError && !isRecoverableAuthSessionError(authError)) {
     throw new Error(`Unable to verify the current user: ${authError.message}`);
   }
+  const currentUser = authError ? null : user;
 
   let items: ResumeItem[] = [];
   let loadError = "";
-  if (user) {
+  if (currentUser) {
     const { data, error } = await getSupabase()
       .from("ai_generations")
       .select("id, course_id, item_type, generated_text, category, resume_section, resume_position, created_at, courses!inner(course_code, title)")
-      .eq("user_id", user.id)
+      .eq("user_id", currentUser.id)
       .in("item_type", ["skill", "resume_bullet"])
       .not("generated_text", "is", null)
       .order("created_at", { ascending: true });
@@ -98,9 +100,9 @@ export default async function ResumePage({
   return (
     <ResumeBuilder
       items={items}
-      isSignedIn={Boolean(user)}
-      displayName={user ? getDisplayName(user) : "Your name"}
-      email={user?.email ?? ""}
+      isSignedIn={Boolean(currentUser)}
+      displayName={currentUser ? getDisplayName(currentUser) : "Your name"}
+      email={currentUser?.email ?? ""}
       authError={Boolean(searchParams?.auth_error)}
       loadError={loadError}
     />
