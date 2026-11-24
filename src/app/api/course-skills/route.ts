@@ -184,7 +184,9 @@ export async function GET() {
           courseTitle: course.title,
           professors: Array.from(new Set([
             ...getProfessors(skill.syllabi),
-            ...(sharedSkillProfessors.get(`${skill.course_id}|${skill.skill_name.trim().toLowerCase()}`) ?? []),
+            ...Array.from(
+              sharedSkillProfessors.get(`${skill.course_id}|${skill.skill_name.trim().toLowerCase()}`) ?? [],
+            ),
           ])),
           name: skill.skill_name,
           sourceType: skill.source_type,
