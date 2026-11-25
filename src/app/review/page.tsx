@@ -89,22 +89,40 @@ export default async function SyllabusReview({
   const requestedCourseId = firstParam(searchParams?.courseId);
   const requestedHistoryId = firstParam(searchParams?.historyId);
 
-  const requestedCourse = isUuid(requestedCourseId)
-    ? courses.find((course) => course.id === requestedCourseId)
-    : undefined;
+  let requestedCourse: Course | null = null;
+  if (isUuid(requestedCourseId)) {
+    // Resolve profile links directly so they don't depend on the catalog's
+    // 5,000-row search window or its alphabetical ordering.
+    const { data } = await getSupabase()
+      .from("courses")
+      .select("id, course_code, title")
+      .eq("id", requestedCourseId)
+      .maybeSingle();
+    requestedCourse = (data as Course | null) ??
+      courses.find((course) => course.id === requestedCourseId) ??
+      null;
+
+    if (requestedCourse && !courses.some((course) => course.id === requestedCourse.id)) {
+      courses = [requestedCourse, ...courses];
+    }
+  }
 
   if (currentUser && requestedCourse) {
     const admin = getSupabase();
-    const { data: enrollment } = await admin
+    const { data: enrollments } = await admin
       .from("user_courses")
       .select("status")
       .eq("user_id", currentUser.id)
-      .eq("course_id", requestedCourse.id)
-      .maybeSingle();
+      .eq("course_id", requestedCourse.id);
+    // Older databases may contain duplicate rows from before the unique
+    // user/course constraint was installed. Any matching row proves this
+    // course belongs to the signed-in user's profile.
+    const enrollment = (enrollments ?? []).find((row) => row.status === "completed") ??
+      enrollments?.[0];
 
     if (enrollment) {
       initialCourse = requestedCourse;
-      initialCourseCompleted = enrollment.status === "completed";
+      initialCourseCompleted = enrollments?.some((row) => row.status === "completed") ?? false;
 
       const historyBaseQuery = admin
         .from("user_course_history")
