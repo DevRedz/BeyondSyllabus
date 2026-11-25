@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { CanvasFactory } from "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 import { getSupabase } from "../../../../../lib/supabase";
 import { createClient } from "../../../../../lib/supabase/server";
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
     if (file.type === "application/pdf" || lowerName.endsWith(".pdf")) {
       let parser: PDFParse | null = null;
       try {
-        parser = new PDFParse({ data: new Uint8Array(await file.arrayBuffer()) });
+        parser = new PDFParse({ data: new Uint8Array(await file.arrayBuffer()), CanvasFactory });
         const extracted = await parser.getText();
         const text = extracted.text.trim();
         if (text.length < 80) {

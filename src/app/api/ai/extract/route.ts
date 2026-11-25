@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { CanvasFactory } from "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 import { getSupabase } from "../../../../lib/supabase";
 import { createClient } from "../../../../lib/supabase/server";
@@ -209,7 +210,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "The uploaded file is not a valid PDF." }, { status: 415 });
     }
 
-    const parser = new PDFParse({ data: pdfBytes });
+    const parser = new PDFParse({ data: pdfBytes, CanvasFactory });
     try {
       const extractedPdf = await parser.getText();
       sourceText = extractedPdf.text.trim();
