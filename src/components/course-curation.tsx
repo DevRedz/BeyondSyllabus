@@ -827,7 +827,7 @@ export default function CourseCuration({
             <div className="limit-note">
               <span>Up to 3 skill categories</span>
               <span>4 skills per category</span>
-              <span>5 resume bullets</span>
+              <span>Up to 5 resume bullets</span>
             </div>
           </div>
         ) : (
@@ -891,16 +891,22 @@ export default function CourseCuration({
               </div>
             ) : (
               <div className="review-list" role="tabpanel">
-                {analysis.resume_bullets.map((bullet, index) => (
-                  <label className="review-item bullet-item" key={`${index}-${bullet}`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedBullets.has(index)}
-                      onChange={() => toggleBullet(index)}
-                    />
-                    <span className="review-item-copy">{bullet}</span>
-                  </label>
-                ))}
+                {analysis.resume_bullets.length ? (
+                  analysis.resume_bullets.map((bullet, index) => (
+                    <label className="review-item bullet-item" key={`${index}-${bullet}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedBullets.has(index)}
+                        onChange={() => toggleBullet(index)}
+                      />
+                      <span className="review-item-copy">{bullet}</span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="field-hint">
+                    This source did not provide enough specific project or assignment detail for resume bullets. Add a syllabus with project descriptions to get stronger suggestions.
+                  </p>
+                )}
               </div>
             )}
 
